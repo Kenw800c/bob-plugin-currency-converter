@@ -6,11 +6,12 @@ function supportLanguages() {
 }
 
 function translate(query, completion) {
-  const rawText = query.text.trim();
-  const text = rawText.toLowerCase();
+  const rawText = query.text.trim().toLowerCase();
 
-  const numMatch = text.match(/(\d+(?:,\d+)*(?:\.\d+)?)/);
-  if (!numMatch) {
+  // 1. 匹配出字符串里所有的数字片段 (例如 "3, 740.50" 会匹配出 ["3", "740", "50"])
+  const numParts = rawText.match(/\d+/g);
+
+  if (!numParts || numParts.length === 0) {
     completion({
       error: {
         type: 'unsupportedLanguage',
@@ -20,57 +21,88 @@ function translate(query, completion) {
     return;
   }
 
-  const amount = parseFloat(numMatch[1].replace(/,/g, ''));
+  let amount = 0;
+
+  // 2. 如果存在小数点，拆分整数与小数部分
+  if (rawText.includes('.')) {
+    const dotSplit = rawText.split('.');
+    const integerParts = dotSplit[0].match(/\d+/g);
+    const decimalParts = dotSplit[1].match(/\d+/);
+
+    const intStr = integerParts ? integerParts.join('') : '0';
+    const decStr = decimalParts ? decimalParts[0] : '0';
+    amount = parseFloat(`${intStr}.${decStr}`);
+  } else {
+    // 没有小数点，直接拼接所有数字片段 (如 ["3", "740"] -> "3740")
+    amount = parseFloat(numParts.join(''));
+  }
+
+  if (isNaN(amount) || amount === 0) {
+    completion({
+      error: {
+        type: 'unsupportedLanguage',
+        message: '数字解析失败'
+      }
+    });
+    return;
+  }
 
   let fromCurrency = '';
   let currencySymbol = '';
 
-  // 1. 新加坡元 (SGD, S$, 新币, 新元, 坡币)
-  if (text.includes('sgd') || text.includes('s$') || text.includes('新币') || text.includes('新元') || text.includes('坡币')) {
+  // 3. 币种识别逻辑
+  // 澳门币 (MOP, 澳门币, 澳门元, 葡币, mop$)
+  if (rawText.includes('mop') || rawText.includes('澳门币') || rawText.includes('澳门元') || rawText.includes('葡币')) {
+    fromCurrency = 'MOP';
+    currencySymbol = 'MOP$';
+  }
+  // 新加坡元
+  else if (rawText.includes('sgd') || rawText.includes('s$') || rawText.includes('新币') || rawText.includes('新元') || rawText.includes('坡币')) {
     fromCurrency = 'SGD';
     currencySymbol = 'S$';
   }
-  // 2. 日元 (JPY, 円, 日元, ¥)
-  else if (text.includes('jpy') || text.includes('円') || text.includes('日元')) {
+  // 日元
+  else if (rawText.includes('jpy') || rawText.includes('円') || rawText.includes('日元')) {
     fromCurrency = 'JPY';
     currencySymbol = '円';
   } 
-  // 3. 美元 (USD, $, 美元, 刀)
-  else if (text.includes('usd') || text.includes('$') || text.includes('美元') || text.includes('刀')) {
+  // 美元
+  else if (rawText.includes('usd') || rawText.includes('$') || rawText.includes('美元') || rawText.includes('刀')) {
     fromCurrency = 'USD';
     currencySymbol = '$';
   } 
-  // 4. 欧元 (EUR, €, 欧元)
-  else if (text.includes('eur') || text.includes('€') || text.includes('欧元')) {
+  // 欧元
+  else if (rawText.includes('eur') || rawText.includes('€') || rawText.includes('欧元')) {
     fromCurrency = 'EUR';
     currencySymbol = '€';
   } 
-  // 5. 英镑 (GBP, £, 英镑)
-  else if (text.includes('gbp') || text.includes('£') || text.includes('英镑')) {
+  // 英镑
+  else if (rawText.includes('gbp') || rawText.includes('£') || rawText.includes('英镑')) {
     fromCurrency = 'GBP';
     currencySymbol = '£';
   } 
-  // 6. 韩元 (KRW, ₩, 韩元)
-  else if (text.includes('krw') || text.includes('₩') || text.includes('韩元')) {
+  // 韩元
+  else if (rawText.includes('krw') || rawText.includes('₩') || rawText.includes('韩元')) {
     fromCurrency = 'KRW';
     currencySymbol = '₩';
   } 
-  // 7. 港币 (HKD, HK$, 港币, 港元)
-  else if (text.includes('hkd') || text.includes('hk$') || text.includes('港币') || text.includes('港元')) {
+  // 港币
+  else if (rawText.includes('hkd') || rawText.includes('hk$') || rawText.includes('港币') || rawText.includes('港元')) {
     fromCurrency = 'HKD';
     currencySymbol = 'HK$';
   }
-  // 8. 纯人民币符号 / 纯日元符号 ¥ 兜底
-  else if (text.includes('￥') || text.includes('¥')) {
+  // 纯符号 ¥ 默认日元
+  else if (rawText.includes('￥') || rawText.includes('¥')) {
     fromCurrency = 'JPY';
     currencySymbol = '円';
   }
-  // 9. 纯数字兜底（默认日元）
+  // 兜底日元
   else {
     fromCurrency = 'JPY';
     currencySymbol = '円';
   }
 
+  // 4. 调用汇率 API
   $http.get({
     url: `https://open.er-api.com/v6/latest/${fromCurrency}`,
     handler: function(resp) {
