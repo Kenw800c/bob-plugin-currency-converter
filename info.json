@@ -1,0 +1,10 @@
+{
+  "identifier": "com.currency.converter.plugin",
+  "version": "1.0.6",
+  "category": "translate",
+  "name": "汇率换算",
+  "summary": "划词提取外币金额（如199円、$20、SGD50）并自动折算为人民币",
+  "icon": "icon.png",
+  "author": "kenw800c",
+  "homepage": "https://github.com/kenw800c/bob-plugin-currency-converter"
+}
