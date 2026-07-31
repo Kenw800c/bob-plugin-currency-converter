@@ -1,6 +1,6 @@
 {
   "identifier": "com.currency.converter.plugin",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "category": "translate",
   "name": "汇率换算",
   "summary": "划词提取外币金额（如199円、$20、SGD50）并自动折算为人民币",
