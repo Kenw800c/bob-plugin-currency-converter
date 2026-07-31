@@ -67,31 +67,13 @@ function translate(query, completion) {
   }
 
   // ==========================================
-  // 步骤 2：全场景电商“上标缺失小数点”智能修复
+  // 步骤 2：全场景数值提取与电商上标纠错
   // ==========================================
   
   let amount = 0;
 
-  // 特例 1：带逗号的千分位上标（如 "3,21839" 或 "3,218 39"）
-  const amazonCommaMatch = rawText.match(/(\d+),(\d{3})\s*(\d{2})\b/);
-
-  // 特例 2：无小数点、用空格隔开上标的格式（如 "294 78" 或 "3218 39"）
-  const amazonSpaceMatch = rawText.match(/(\d+)\s+(\d{2})\b/);
-
-  // 情况 A：处理带逗号的特例 (例如 "3,21839" -> 3218.39)
-  if (!rawText.includes('.') && amazonCommaMatch) {
-    const intPart = amazonCommaMatch[1] + amazonCommaMatch[2];
-    const decPart = amazonCommaMatch[3];
-    amount = parseFloat(`${intPart}.${decPart}`);
-  }
-  // 情况 B：处理空格分隔无小数点的特例 (例如 "294 78" -> 294.78)
-  else if (!rawText.includes('.') && amazonSpaceMatch) {
-    const intPart = amazonSpaceMatch[1];
-    const decPart = amazonSpaceMatch[2];
-    amount = parseFloat(`${intPart}.${decPart}`);
-  }
-  // 情况 C：标准带小数点的格式 (例如 "294.78" 或 "3,218.39")
-  else if (rawText.includes('.')) {
+  // 检查是否包含明确的小数点
+  if (rawText.includes('.')) {
     const dotSplit = rawText.split('.');
     const integerParts = dotSplit[0].match(/\d+/g);
     const decimalParts = dotSplit[1].match(/\d+/);
@@ -100,9 +82,10 @@ function translate(query, completion) {
     const decStr = decimalParts ? decimalParts[0] : '0';
     amount = parseFloat(`${intStr}.${decStr}`);
   } 
-  // 情况 D：普通纯整数 (例如 "294" 或 "3218")
   else {
+    // 无小数点情况，处理数字片段
     const numParts = rawText.match(/\d+/g);
+    
     if (!numParts || numParts.length === 0) {
       completion({
         error: {
@@ -112,7 +95,23 @@ function translate(query, completion) {
       });
       return;
     }
-    amount = parseFloat(numParts.join(''));
+
+    const fullNumDigits = numParts.join('');
+
+    // 判断逻辑：如果是不含小数点的法币（如 JPY/KRW），或者只有 1-2 位数，直接当整数
+    if (fromCurrency === 'JPY' || fromCurrency === 'KRW' || fullNumDigits.length <= 2) {
+      amount = parseFloat(fullNumDigits);
+    } 
+    // 电商特例处理：如果中间带有空格或逗号分隔（如 "1 298"、"294 78"、"3,21839"），强制将最后 2 位数当成角分小数！
+    else if (numParts.length > 1 || rawText.includes(',')) {
+      const intStr = fullNumDigits.slice(0, -2);
+      const decStr = fullNumDigits.slice(-2);
+      amount = parseFloat(`${intStr}.${decStr}`);
+    } 
+    // 普通纯整数
+    else {
+      amount = parseFloat(fullNumDigits);
+    }
   }
 
   if (isNaN(amount) || amount === 0) {
