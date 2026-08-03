@@ -4,7 +4,7 @@
 function supportLanguages() {
   return [
     "auto", "zh-Hans", "zh-Hant", "en", "ja", "ko",
-    "fr", "de", "es", "it", "ru", "pt", "nl", "pl", "ar"
+    "th", "fr", "de", "es", "it", "ru", "pt", "nl", "pl", "ar"
   ];
 }
 
