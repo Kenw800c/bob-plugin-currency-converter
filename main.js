@@ -12,17 +12,19 @@ function supportLanguages() {
  * Bob 核心翻译/换算入口函数
  */
 function translate(query, completion) {
-  const rawText = query.text.trim().toLowerCase();
+  // 安全获取原始文本（不对特殊符号直接处理 lowerCase，避免字符破坏）
+  const originalText = (query.text || '').trim();
+  const rawText = originalText.toLowerCase();
 
   let fromCurrency = '';
   let currencySymbol = '';
 
   // ==========================================
-  // 步骤 1：严格的货币特征预检（新增 泰铢 与 新台币）
+  // 步骤 1：严格的货币特征预检（包含 ฿ 符号安全判定）
   // ==========================================
   
   // 1. 泰铢 (THB, ฿, 泰铢, 泰币)
-  if (rawText.includes('thb') || rawText.includes('฿') || rawText.includes('泰铢') || rawText.includes('泰币')) {
+  if (rawText.includes('thb') || originalText.includes('฿') || rawText.includes('泰铢') || rawText.includes('泰币')) {
     fromCurrency = 'THB';
     currencySymbol = '฿';
   }
@@ -81,60 +83,71 @@ function translate(query, completion) {
     return;
   }
 
- // ==========================================
+  // ==========================================
   // 步骤 2：全场景数值提取与角分智能启发式解析
   // ==========================================
   
   let amount = 0;
 
-  // 情况 A：文本明确带有小数点 "."（如 "73.71" 或 "44.80"）
-  if (rawText.includes('.')) {
-    const dotSplit = rawText.split('.');
-    const integerParts = dotSplit[0].match(/\d+/g);
-    const decimalParts = dotSplit[1].match(/\d+/);
+  try {
+    // 情况 A：文本明确带有小数点 "."（如 "73.71" 或 "44.80"）
+    if (rawText.includes('.')) {
+      const dotSplit = rawText.split('.');
+      const integerParts = dotSplit[0].match(/\d+/g);
+      const decimalParts = dotSplit[1].match(/\d+/);
 
-    const intStr = integerParts ? integerParts.join('') : '0';
-    const decStr = decimalParts ? decimalParts[0] : '0';
-    amount = parseFloat(`${intStr}.${decStr}`);
-  } 
-  // 情况 B：没有小数点 "." 的情况
-  else {
-    const numParts = rawText.match(/\d+/g);
-    
-    if (!numParts || numParts.length === 0) {
-      completion({
-        error: {
-          type: 'unsupportedLanguage',
-          message: '文本中未检测到有效数字'
-        }
-      });
-      return;
-    }
-
-    const fullNumDigits = numParts.join('');
-
-    // 1. 无角分货币 (JPY/KRW) 或只有 1-2 位数字，一律按纯整数算
-    if (fromCurrency === 'JPY' || fromCurrency === 'KRW' || fullNumDigits.length <= 2) {
-      amount = parseFloat(fullNumDigits);
-    } 
-    // 2. 明确多段数字 (如 "294 78") 或带逗号 (如 "3,21839") $\rightarrow$ 必为角分切割
-    else if (numParts.length > 1 || rawText.includes(',')) {
-      const intStr = fullNumDigits.slice(0, -2);
-      const decStr = fullNumDigits.slice(-2);
+      const intStr = integerParts ? integerParts.join('') : '0';
+      const decStr = decimalParts ? decimalParts[0] : '0';
       amount = parseFloat(`${intStr}.${decStr}`);
     } 
-    // 3. 针对完全黏合的 4 位或 5 位单段数字（如 "4480"、"7371"）
-    // 尝试识别为电商上标角分（即切出末尾 2 位），避免把 44.8 的包算成 2.3 万人民币
-    else if (fullNumDigits.length === 4 || fullNumDigits.length === 5) {
-      const intStr = fullNumDigits.slice(0, -2);
-      const decStr = fullNumDigits.slice(-2);
-      amount = parseFloat(`${intStr}.${decStr}`);
-    }
-    // 4. 其他情况（如 3 位数 "155"）保持纯整数
+    // 情况 B：没有小数点 "." 的情况
     else {
-      amount = parseFloat(fullNumDigits);
+      const numParts = rawText.match(/\d+/g);
+      
+      if (!numParts || numParts.length === 0) {
+        completion({
+          error: {
+            type: 'unsupportedLanguage',
+            message: '文本中未检测到有效数字'
+          }
+        });
+        return;
+      }
+
+      const fullNumDigits = numParts.join('');
+
+      // 1. 无常规角分 / 通常直接使用整数的货币 (JPY/KRW/THB/TWD) 或只有 1-2 位数字，一律按纯整数算
+      if (['JPY', 'KRW', 'THB', 'TWD'].includes(fromCurrency) || fullNumDigits.length <= 2) {
+        amount = parseFloat(fullNumDigits);
+      } 
+      // 2. 明确多段数字 (如 "294 78") 或带逗号 (如 "3,21839") -> 必为角分切割
+      else if (numParts.length > 1 || rawText.includes(',')) {
+        const intStr = fullNumDigits.slice(0, -2);
+        const decStr = fullNumDigits.slice(-2);
+        amount = parseFloat(`${intStr}.${decStr}`);
+      } 
+      // 3. 针对欧美电商完全黏合的 4 位或 5 位单段数字（如 "4480"、"7371"）
+      // 尝试识别为电商上标角分（即切出末尾 2 位）
+      else if (fullNumDigits.length === 4 || fullNumDigits.length === 5) {
+        const intStr = fullNumDigits.slice(0, -2);
+        const decStr = fullNumDigits.slice(-2);
+        amount = parseFloat(`${intStr}.${decStr}`);
+      }
+      // 4. 其他情况（如 3 位数 "155"）保持纯整数
+      else {
+        amount = parseFloat(fullNumDigits);
+      }
     }
+  } catch (e) {
+    completion({
+      error: {
+        type: 'param',
+        message: '数字解析异常'
+      }
+    });
+    return;
   }
+
   // ==========================================
   // 步骤 3：请求 API 进行汇率换算
   // ==========================================
