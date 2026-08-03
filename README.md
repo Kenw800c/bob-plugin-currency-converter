@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="icon.png" width="128" height="128" alt="插件图标" />
+</p>
+
 # Bob 汇率换算插件 (Currency Converter for Bob)
 
 一款专为 macOS 划词/截图翻译工具 **Bob** 打造的实时汇率换算插件。支持划词提取或截图 OCR 识别人民币以外的外币金额，并自动实时折算为人民币（CNY）。
