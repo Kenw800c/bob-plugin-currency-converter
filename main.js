@@ -18,37 +18,55 @@ function translate(query, completion) {
   let currencySymbol = '';
 
   // ==========================================
-  // 步骤 1：严格的货币特征预检（新增 JP 前缀支持）
+  // 步骤 1：严格的货币特征预检（新增 泰铢 与 新台币）
   // ==========================================
-  if (rawText.includes('mop') || rawText.includes('澳门币') || rawText.includes('澳门元') || rawText.includes('葡币')) {
+  
+  // 1. 泰铢 (THB, ฿, 泰铢, 泰币)
+  if (rawText.includes('thb') || rawText.includes('฿') || rawText.includes('泰铢') || rawText.includes('泰币')) {
+    fromCurrency = 'THB';
+    currencySymbol = '฿';
+  }
+  // 2. 新台币 (TWD, nt$, nt, 台币, 新台币)
+  else if (rawText.includes('twd') || rawText.includes('nt$') || rawText.includes('nt') || rawText.includes('台币') || rawText.includes('新台币')) {
+    fromCurrency = 'TWD';
+    currencySymbol = 'NT$';
+  }
+  // 3. 澳门币 (MOP)
+  else if (rawText.includes('mop') || rawText.includes('澳门币') || rawText.includes('澳门元') || rawText.includes('葡币')) {
     fromCurrency = 'MOP';
     currencySymbol = 'MOP$';
   }
+  // 4. 新加坡元 (SGD)
   else if (rawText.includes('sgd') || rawText.includes('s$') || rawText.includes('新币') || rawText.includes('新元') || rawText.includes('坡币')) {
     fromCurrency = 'SGD';
     currencySymbol = 'S$';
   }
-  // 关键增强：增加 jp / jp¥ / jp. 前缀识别
+  // 5. 日元 (JPY, 含 jp/jp¥/· 等 OCR 特征)
   else if (rawText.includes('jpy') || rawText.includes('円') || rawText.includes('日元') || rawText.includes('jp') || rawText.includes('￥') || rawText.includes('¥')) {
     fromCurrency = 'JPY';
     currencySymbol = '円';
   } 
+  // 6. 美元 (USD)
   else if (rawText.includes('usd') || rawText.includes('$') || rawText.includes('美元') || rawText.includes('刀')) {
     fromCurrency = 'USD';
     currencySymbol = '$';
   } 
+  // 7. 欧元 (EUR)
   else if (rawText.includes('eur') || rawText.includes('€') || rawText.includes('欧元')) {
     fromCurrency = 'EUR';
     currencySymbol = '€';
   } 
+  // 8. 英镑 (GBP)
   else if (rawText.includes('gbp') || rawText.includes('£') || rawText.includes('英镑')) {
     fromCurrency = 'GBP';
     currencySymbol = '£';
   } 
+  // 9. 韩元 (KRW)
   else if (rawText.includes('krw') || rawText.includes('₩') || rawText.includes('韩元')) {
     fromCurrency = 'KRW';
     currencySymbol = '₩';
   } 
+  // 10. 港币 (HKD)
   else if (rawText.includes('hkd') || rawText.includes('hk$') || rawText.includes('港币') || rawText.includes('港元')) {
     fromCurrency = 'HKD';
     currencySymbol = 'HK$';
@@ -57,7 +75,7 @@ function translate(query, completion) {
     completion({
       error: {
         type: 'unsupportedLanguage',
-        message: '未检测到有效货币单位（如 $, 円, USD, SGD, JP 等）'
+        message: '未检测到有效货币单位（如 $, 円, ฿, NT$, USD, SGD, MOP 等）'
       }
     });
     return;
@@ -79,7 +97,7 @@ function translate(query, completion) {
     const decStr = decimalParts ? decimalParts[0] : '0';
     amount = parseFloat(`${intStr}.${decStr}`);
   } 
-  // 情况 B：没有小数点 "." 的情况（包含 JP·9,000）
+  // 情况 B：没有小数点 "." 的情况
   else {
     const numParts = rawText.match(/\d+/g);
     
@@ -95,11 +113,11 @@ function translate(query, completion) {
 
     const fullNumDigits = numParts.join('');
 
-    // 日元 (JPY) 和韩元 (KRW) 属于无角分/纯整数货币，提取出的数字永远全保留为整数（如 "9000" -> 9000）
+    // 日元 (JPY) 和韩元 (KRW) 属于无角分/纯整数货币，提取出的数字永远全保留为整数
     if (fromCurrency === 'JPY' || fromCurrency === 'KRW' || fullNumDigits.length <= 2) {
       amount = parseFloat(fullNumDigits);
     } 
-    // 其他外币且无点时，把末尾 2 位切出来当角分
+    // 其他外币（含 THB, TWD, SGD, USD 等）且无点时，把末尾 2 位切出来当角分
     else {
       const intStr = fullNumDigits.slice(0, -2);
       const decStr = fullNumDigits.slice(-2);
