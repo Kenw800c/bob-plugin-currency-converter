@@ -18,7 +18,7 @@ function translate(query, completion) {
   let currencySymbol = '';
 
   // ==========================================
-  // 步骤 1：严格的货币特征预检
+  // 步骤 1：严格的货币特征预检（新增 JP 前缀支持）
   // ==========================================
   if (rawText.includes('mop') || rawText.includes('澳门币') || rawText.includes('澳门元') || rawText.includes('葡币')) {
     fromCurrency = 'MOP';
@@ -28,7 +28,8 @@ function translate(query, completion) {
     fromCurrency = 'SGD';
     currencySymbol = 'S$';
   }
-  else if (rawText.includes('jpy') || rawText.includes('円') || rawText.includes('日元')) {
+  // 关键增强：增加 jp / jp¥ / jp. 前缀识别
+  else if (rawText.includes('jpy') || rawText.includes('円') || rawText.includes('日元') || rawText.includes('jp') || rawText.includes('￥') || rawText.includes('¥')) {
     fromCurrency = 'JPY';
     currencySymbol = '円';
   } 
@@ -52,27 +53,23 @@ function translate(query, completion) {
     fromCurrency = 'HKD';
     currencySymbol = 'HK$';
   }
-  else if (rawText.includes('￥') || rawText.includes('¥')) {
-    fromCurrency = 'JPY';
-    currencySymbol = '円';
-  }
   else {
     completion({
       error: {
         type: 'unsupportedLanguage',
-        message: '未检测到有效货币单位（如 $, 円, USD, SGD 等）'
+        message: '未检测到有效货币单位（如 $, 円, USD, SGD, JP 等）'
       }
     });
     return;
   }
 
   // ==========================================
-  // 步骤 2：全场景数值提取与电商上标纠错
+  // 步骤 2：全场景数值提取与角分自动断句
   // ==========================================
   
   let amount = 0;
 
-  // 检查是否包含明确的小数点
+  // 情况 A：文本明确带有小数点 "."（如 "73.71" 或 "3,218.39"）
   if (rawText.includes('.')) {
     const dotSplit = rawText.split('.');
     const integerParts = dotSplit[0].match(/\d+/g);
@@ -82,8 +79,8 @@ function translate(query, completion) {
     const decStr = decimalParts ? decimalParts[0] : '0';
     amount = parseFloat(`${intStr}.${decStr}`);
   } 
+  // 情况 B：没有小数点 "." 的情况（包含 JP·9,000）
   else {
-    // 无小数点情况，处理数字片段
     const numParts = rawText.match(/\d+/g);
     
     if (!numParts || numParts.length === 0) {
@@ -98,19 +95,15 @@ function translate(query, completion) {
 
     const fullNumDigits = numParts.join('');
 
-    // 判断逻辑：如果是不含小数点的法币（如 JPY/KRW），或者只有 1-2 位数，直接当整数
+    // 日元 (JPY) 和韩元 (KRW) 属于无角分/纯整数货币，提取出的数字永远全保留为整数（如 "9000" -> 9000）
     if (fromCurrency === 'JPY' || fromCurrency === 'KRW' || fullNumDigits.length <= 2) {
       amount = parseFloat(fullNumDigits);
     } 
-    // 电商特例处理：如果中间带有空格或逗号分隔（如 "1 298"、"294 78"、"3,21839"），强制将最后 2 位数当成角分小数！
-    else if (numParts.length > 1 || rawText.includes(',')) {
+    // 其他外币且无点时，把末尾 2 位切出来当角分
+    else {
       const intStr = fullNumDigits.slice(0, -2);
       const decStr = fullNumDigits.slice(-2);
       amount = parseFloat(`${intStr}.${decStr}`);
-    } 
-    // 普通纯整数
-    else {
-      amount = parseFloat(fullNumDigits);
     }
   }
 
