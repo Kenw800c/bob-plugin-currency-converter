@@ -30,7 +30,7 @@
 ### 📦 安装方法
 
 1. 前往本仓库的 [Releases 页面](https://github.com/Kenw800c/bob-plugin-currency-converter/releases) 下载最新版的 `CurrencyConverter.bobplugin`。
-2. 双击 `.CurrencyConverter.bobplugin` 文件，或直接将其拖入 Bob 偏好设置中的 **插件列表** 即可完成安装。
+2. 双击 `CurrencyConverter.bobplugin` 文件，或直接将其拖入 Bob 偏好设置中的 **插件列表** 即可完成安装。
 
 ---
 
