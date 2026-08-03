@@ -4,7 +4,7 @@
     {
       "version": "1.1.4",
       "desc": "支持日元/美元/港币等 10 种常见外币自动折算为人民币，优化电商上标与 OCR 识别。",
-      "sha256": "7541ade772ed7744aa2de6398a2fe102554924342ff2a6e89d62efe8eb2fb135",
+      "sha256": "7a6c570140444c7d23eb7d4fa8bdb16b0917ffc3773e7e6167a5c553dbfe7ab8",
       "url": "https://github.com/Kenw800c/bob-plugin-currency-converter/releases/download/v1.1.4/CurrencyConverter.bobplugin",
       "minBobVersion": "0.5.0",
       "timestamp": 1785739200000
