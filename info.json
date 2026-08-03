@@ -1,10 +1,13 @@
 {
-  "identifier": "com.currency.converter.plugin",
+  "identifier": "com.kenw800c.currency-converter",
   "version": "1.1.3",
   "category": "translate",
   "name": "汇率换算",
-  "summary": "划词提取外币金额（如199円、$20、SGD50）并自动折算为人民币",
+  "summary": "划词提取外币金额（日元/美元/SGD/HKD/MOP/THB/TWD等）并自动实时折算为人民币，强力适配电商上标与OCR格式纠错。",
   "icon": "icon.png",
   "author": "kenw800c",
-  "homepage": "https://github.com/kenw800c/bob-plugin-currency-converter"
+  "homepage": "https://github.com/Kenw800c/bob-plugin-currency-converter",
+  "appcast": "https://raw.githubusercontent.com/Kenw800c/bob-plugin-currency-converter/main/appcast.json",
+  "minBobVersion": "0.5.0",
+  "options": []
 }
