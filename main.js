@@ -81,13 +81,13 @@ function translate(query, completion) {
     return;
   }
 
-  // ==========================================
-  // 步骤 2：全场景数值提取与角分自动断句
+ // ==========================================
+  // 步骤 2：全场景数值提取与角分智能启发式解析
   // ==========================================
   
   let amount = 0;
 
-  // 情况 A：文本明确带有小数点 "."（如 "73.71" 或 "3,218.39"）
+  // 情况 A：文本明确带有小数点 "."（如 "73.71" 或 "44.80"）
   if (rawText.includes('.')) {
     const dotSplit = rawText.split('.');
     const integerParts = dotSplit[0].match(/\d+/g);
@@ -113,28 +113,28 @@ function translate(query, completion) {
 
     const fullNumDigits = numParts.join('');
 
-    // 日元 (JPY) 和韩元 (KRW) 属于无角分/纯整数货币，提取出的数字永远全保留为整数
+    // 1. 无角分货币 (JPY/KRW) 或只有 1-2 位数字，一律按纯整数算
     if (fromCurrency === 'JPY' || fromCurrency === 'KRW' || fullNumDigits.length <= 2) {
       amount = parseFloat(fullNumDigits);
     } 
-    // 其他外币（含 THB, TWD, SGD, USD 等）且无点时，把末尾 2 位切出来当角分
-    else {
+    // 2. 明确多段数字 (如 "294 78") 或带逗号 (如 "3,21839") $\rightarrow$ 必为角分切割
+    else if (numParts.length > 1 || rawText.includes(',')) {
+      const intStr = fullNumDigits.slice(0, -2);
+      const decStr = fullNumDigits.slice(-2);
+      amount = parseFloat(`${intStr}.${decStr}`);
+    } 
+    // 3. 针对完全黏合的 4 位或 5 位单段数字（如 "4480"、"7371"）
+    // 尝试识别为电商上标角分（即切出末尾 2 位），避免把 44.8 的包算成 2.3 万人民币
+    else if (fullNumDigits.length === 4 || fullNumDigits.length === 5) {
       const intStr = fullNumDigits.slice(0, -2);
       const decStr = fullNumDigits.slice(-2);
       amount = parseFloat(`${intStr}.${decStr}`);
     }
+    // 4. 其他情况（如 3 位数 "155"）保持纯整数
+    else {
+      amount = parseFloat(fullNumDigits);
+    }
   }
-
-  if (isNaN(amount) || amount === 0) {
-    completion({
-      error: {
-        type: 'unsupportedLanguage',
-        message: '数字解析失败'
-      }
-    });
-    return;
-  }
-
   // ==========================================
   // 步骤 3：请求 API 进行汇率换算
   // ==========================================
