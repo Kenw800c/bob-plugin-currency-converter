@@ -1,13 +1,25 @@
 {
   "identifier": "com.kenw800c.currency-converter",
-  "version": "1.1.4",
+  "version": "1.2.0",
   "category": "translate",
   "name": "汇率换算",
-  "summary": "支持日元/美元/港币等 10 种常见外币自动折算为人民币，优化电商上标与 OCR 识别。",
+  "summary": "自动识别全球主流外币并换算为人民币，智能适配海淘电商与 OCR 识别。",
   "icon": "icon.png",
   "author": "kenw800c",
   "homepage": "https://github.com/Kenw800c/bob-plugin-currency-converter",
   "appcast": "https://raw.githubusercontent.com/Kenw800c/bob-plugin-currency-converter/main/appcast.json",
-  "minBobVersion": "0.5.0",
-  "options": []
+  "minBobVersion": "1.8.0",
+  "options": [
+    {
+      "identifier": "defaultDollarCurrency",
+      "type": "menu",
+      "title": "单符号 '$' 缺省偏好",
+      "defaultValue": "AUTO",
+      "menuValues": [
+        { "title": "🤖 智能识别 (AUTO)", "value": "AUTO" },
+        { "title": "💵 美元优先 (USD)", "value": "USD" },
+        { "title": "🧋 新台币优先 (TWD)", "value": "TWD" }
+      ]
+    }
+  ]
 }
