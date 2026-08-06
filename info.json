@@ -1,6 +1,6 @@
 {
   "identifier": "com.kenw800c.currency-converter",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "category": "translate",
   "name": "汇率换算",
   "summary": "自动识别全球主流外币并换算为人民币，智能适配海淘电商与 OCR 识别。",
