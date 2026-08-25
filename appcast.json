@@ -3,11 +3,10 @@
   "versions": [
     {
       "version": "1.2.1",
-      "desc": "支持日元/美元/港币等 10 种常见外币自动折算为人民币，优化电商上标与 OCR 识别。",
-      "sha256": "095e84d4a5dfd364352abd11c433d6cf0081cf6271b8eaf3368450fdb3a06d93",
-      "url": "https://github.com/Kenw800c/bob-plugin-currency-converter/releases/download/v1.1.4/CurrencyConverter.bobplugin",
-      "minBobVersion": "1.8.0",
-      "timestamp": 1785739200000
+      "desc": "1. 增加巴西雷亚尔 (BRL) 支持；\n2. 默认单符号 '$' 优先为美元；\n3. 优化港币及各币种 OCR 识别容错。",
+      "sha256": "e78b10f1b4136439fca3d37d4230c506d32ad221d1c6ded1d0d1bf69ddaa5780",
+      "url": "https://github.com/Kenw800c/bob-plugin-currency-converter/releases/download/v1.2.1/currency-converter.bobplugin",
+      "minBobVersion": "1.8.0"
     }
   ]
 }
