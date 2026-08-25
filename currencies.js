@@ -1,5 +1,5 @@
 /**
- * 核心货币字典与解析管道 (已包含巴西雷亚尔 BRL)
+ * 核心货币字典与解析管道 (支持葡语/欧系逗号小数点 25,50 解析)
  */
 
 const list = {
@@ -90,16 +90,11 @@ const list = {
   }
 };
 
-function parse(rawText, originalText, defaultDollar = 'AUTO') {
+function parse(rawText, originalText, defaultDollar = 'USD') {
   let matchedKey = null;
 
-  // 预处理清洗：统一处理异形单引号 ' ’ `
   let cleanText = rawText.replace(/['’`"]/g, '');
 
-  // ==========================================
-  // 步骤 1：全符号与复合别名匹配
-  // ==========================================
-  
   // 1.1 特殊非字母单字符优先匹配
   if (/[\u00a3\uffe1]|\bgbp\b|英镑/i.test(cleanText)) {
     matchedKey = 'GBP';
@@ -111,7 +106,7 @@ function parse(rawText, originalText, defaultDollar = 'AUTO') {
     matchedKey = 'THB';
   }
 
-  // 1.2 复合别名匹配 (R$, HK$, H$, S$, NT$, MOP$, JP¥, USD, BRL 等)
+  // 1.2 复合别名匹配
   if (!matchedKey) {
     for (const [key, config] of Object.entries(list)) {
       const mainAliases = config.aliases.filter(a => a !== '$' && a !== '¥');
@@ -135,6 +130,8 @@ function parse(rawText, originalText, defaultDollar = 'AUTO') {
     } else if (cleanText.includes('$')) {
       if (defaultDollar === 'USD') {
         matchedKey = 'USD';
+      } else if (defaultDollar === 'TWD') {
+        matchedKey = 'TWD';
       } else if (defaultDollar === 'AUTO') {
         if (cleanText.includes('.')) {
           matchedKey = 'USD';
@@ -144,7 +141,7 @@ function parse(rawText, originalText, defaultDollar = 'AUTO') {
           
           if (afterCommaDigits.length === 3) {
             matchedKey = 'TWD';
-          } else if (afterCommaDigits.length === 4 || afterCommaDigits.length === 5) {
+          } else if (afterCommaDigits.length === 4 || afterCommaDigits.length === 5 || afterCommaDigits.length <= 2) {
             matchedKey = 'USD';
           } else {
             matchedKey = 'TWD';
@@ -157,8 +154,6 @@ function parse(rawText, originalText, defaultDollar = 'AUTO') {
             matchedKey = 'TWD';
           }
         }
-      } else {
-        matchedKey = defaultDollar;
       }
     }
   }
@@ -170,9 +165,6 @@ function parse(rawText, originalText, defaultDollar = 'AUTO') {
   const currencyConfig = list[matchedKey];
   const hasDecimals = currencyConfig.hasDecimals;
 
-  // ==========================================
-  // 步骤 2：数值提取管道
-  // ==========================================
   let pureText = cleanText;
 
   let multiplier = 1;
@@ -186,7 +178,7 @@ function parse(rawText, originalText, defaultDollar = 'AUTO') {
 
   let amount = 0;
 
-  // 场景 A：带有显式小数点 "."
+  // 场景 A：带有显式英文小数点 "."
   if (pureText.includes('.')) {
     const onlyNumAndDot = pureText.replace(/,/g, '').replace(/[^\d.]/g, '');
     const match = onlyNumAndDot.match(/(\d+)\.(\d+)/);
@@ -195,7 +187,38 @@ function parse(rawText, originalText, defaultDollar = 'AUTO') {
     }
   }
 
-  // 场景 B：没有小数点时的提取分支
+  // 场景 B：没有英文小数点，处理带逗号的情况
+  if (!amount && /,/.test(pureText)) {
+    if (!hasDecimals) {
+      // 无角分货币直接全数字拼接
+      const digits = pureText.match(/\d+/g) || [];
+      if (digits.length > 0) {
+        amount = parseFloat(digits.join('')) * multiplier;
+      }
+    } else {
+      const parts = pureText.split(',');
+      const afterCommaDigits = (parts[parts.length - 1].match(/\d+/g) || []).join('');
+      const beforeCommaDigits = parts.slice(0, -1).join('').replace(/[^\d]/g, '');
+
+      // 1. 欧系/葡语逗号当小数点（如 25,50 或 1.250,50）
+      if (afterCommaDigits.length === 1 || afterCommaDigits.length === 2) {
+        amount = parseFloat(`${beforeCommaDigits}.${afterCommaDigits}`) * multiplier;
+      }
+      // 2. 美亚上标粘连 4~5 位（如 3,68379）
+      else if (afterCommaDigits.length === 4 || afterCommaDigits.length === 5) {
+        const intPart = beforeCommaDigits + afterCommaDigits.slice(0, 3);
+        const decPart = afterCommaDigits.slice(3);
+        amount = parseFloat(`${intPart}.${decPart}`) * multiplier;
+      }
+      // 3. 标准千分位整百/千（如 10,000）
+      else if (afterCommaDigits.length === 3) {
+        const pureIntStr = pureText.replace(/,/g, '').replace(/[^\d]/g, '');
+        amount = parseFloat(pureIntStr) * multiplier;
+      }
+    }
+  }
+
+  // 场景 C：纯无标点切块或整数兜底
   if (!amount) {
     if (!hasDecimals) {
       const digits = pureText.match(/\d+/g) || [];
@@ -203,46 +226,26 @@ function parse(rawText, originalText, defaultDollar = 'AUTO') {
         amount = parseFloat(digits.join('')) * multiplier;
       }
     } else {
-      // 带角分货币 (BRL, USD, GBP, EUR, HKD, SGD 等)
-      
-      // B.1 美亚/千分位判定：含逗号
-      if (/,/.test(pureText)) {
-        const parts = pureText.split(',');
-        const afterCommaDigits = (parts[parts.length - 1].match(/\d+/g) || []).join('');
-        
-        if (afterCommaDigits.length === 4 || afterCommaDigits.length === 5) {
-          const intPart = parts[0].replace(/[^\d]/g, '') + afterCommaDigits.slice(0, 3);
-          const decPart = afterCommaDigits.slice(3);
+      const noCommaText = pureText.replace(/,/g, '');
+      const blocks = noCommaText.match(/\d+/g) || [];
+
+      if (blocks.length >= 2) {
+        const lastBlock = blocks[blocks.length - 1];
+        if (lastBlock.length <= 2) {
+          const intPart = blocks.slice(0, -1).join('');
+          const decPart = lastBlock.padStart(2, '0');
           amount = parseFloat(`${intPart}.${decPart}`) * multiplier;
-        } else if (afterCommaDigits.length === 3) {
-          const pureIntStr = pureText.replace(/,/g, '').replace(/[^\d]/g, '');
-          amount = parseFloat(pureIntStr) * multiplier;
+        } else {
+          amount = parseFloat(blocks.join('')) * multiplier;
         }
-      }
-
-      // B.2 无标点切块或粘连
-      if (!amount) {
-        const noCommaText = pureText.replace(/,/g, '');
-        const blocks = noCommaText.match(/\d+/g) || [];
-
-        if (blocks.length >= 2) {
-          const lastBlock = blocks[blocks.length - 1];
-          if (lastBlock.length <= 2) {
-            const intPart = blocks.slice(0, -1).join('');
-            const decPart = lastBlock.padStart(2, '0');
-            amount = parseFloat(`${intPart}.${decPart}`) * multiplier;
-          } else {
-            amount = parseFloat(blocks.join('')) * multiplier;
-          }
-        } else if (blocks.length === 1) {
-          const singleStr = blocks[0];
-          if (singleStr.length >= 5 && singleStr.length <= 6) {
-            const intPart = singleStr.slice(0, -2);
-            const decPart = singleStr.slice(-2);
-            amount = parseFloat(`${intPart}.${decPart}`) * multiplier;
-          } else {
-            amount = parseFloat(singleStr) * multiplier;
-          }
+      } else if (blocks.length === 1) {
+        const singleStr = blocks[0];
+        if (singleStr.length >= 5 && singleStr.length <= 6) {
+          const intPart = singleStr.slice(0, -2);
+          const decPart = singleStr.slice(-2);
+          amount = parseFloat(`${intPart}.${decPart}`) * multiplier;
+        } else {
+          amount = parseFloat(singleStr) * multiplier;
         }
       }
     }
