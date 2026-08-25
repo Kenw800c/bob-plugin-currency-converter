@@ -2,7 +2,7 @@
   "identifier": "com.kenw800c.currency-converter",
   "versions": [
     {
-      "version": "1.2.1",
+      "version": "1.2.2",
       "desc": "1. 增加巴西雷亚尔 (BRL) 支持；\n2. 默认单符号 '$' 优先为美元；\n3. 优化港币及各币种 OCR 识别容错。",
       "sha256": "e78b10f1b4136439fca3d37d4230c506d32ad221d1c6ded1d0d1bf69ddaa5780",
       "url": "https://github.com/Kenw800c/bob-plugin-currency-converter/releases/download/v1.2.1/currency-converter.bobplugin",
