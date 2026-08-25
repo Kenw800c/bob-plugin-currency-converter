@@ -1,6 +1,6 @@
 {
   "identifier": "com.kenw800c.currency-converter",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "category": "translate",
   "name": "汇率换算",
   "summary": "自动识别全球主流外币并换算为人民币，智能适配海淘电商与 OCR 识别。",
@@ -14,10 +14,10 @@
       "identifier": "defaultDollarCurrency",
       "type": "menu",
       "title": "单符号 '$' 缺省偏好",
-      "defaultValue": "AUTO",
+      "defaultValue": "USD",
       "menuValues": [
-        { "title": "🤖 智能识别 (AUTO)", "value": "AUTO" },
         { "title": "💵 美元优先 (USD)", "value": "USD" },
+        { "title": "🤖 智能识别 (AUTO)", "value": "AUTO" },
         { "title": "🧋 新台币优先 (TWD)", "value": "TWD" }
       ]
     }

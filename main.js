@@ -3,7 +3,7 @@ const currencyRules = require('./currencies.js');
 function supportLanguages() {
   return [
     "auto", "zh-Hans", "zh-Hant", "en", "ja", "ko",
-    "th", "fr", "de", "es", "it", "ru", "pt", "nl", "pl", "ar"
+    "th", "fr", "de", "es", "it", "ru", "pt", "pt-BR", "nl", "pl", "ar"
   ];
 }
 
@@ -14,7 +14,8 @@ function translate(query, completion) {
   const normalText = (query.text || '').trim();
   const rawText = (originalText || normalText).toLowerCase();
 
-  const defaultDollar = ($option && $option.defaultDollarCurrency) ? $option.defaultDollarCurrency : 'AUTO';
+  // 默认缺省货币设为 USD
+  const defaultDollar = ($option && $option.defaultDollarCurrency) ? $option.defaultDollarCurrency : 'USD';
 
   // ==========================================
   // 1. 调用 currencies.js 规则管道进行智能解析
@@ -31,7 +32,6 @@ function translate(query, completion) {
     return;
   }
 
-  // 🌟 提取解析结果中的 cnName (中文名)
   const { amount, currencyCode, symbol, cnName } = parsedResult;
 
   // ==========================================
@@ -56,7 +56,6 @@ function translate(query, completion) {
         const resultCNY = (amount * rateToCNY).toFixed(2);
         const singleRate = (1 * rateToCNY).toFixed(4);
 
-        // 🌟 这里拼接了 cnName：• 原价：31.84 GBP (£) 英镑
         handleCompletion({
           result: {
             from: 'auto',

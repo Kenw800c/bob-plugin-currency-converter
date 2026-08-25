@@ -1,8 +1,15 @@
 /**
- * 精简版核心货币字典与解析管道 (修复 3 位数整数误切角分问题)
+ * 核心货币字典与解析管道 (已包含巴西雷亚尔 BRL)
  */
 
 const list = {
+  BRL: {
+    code: "BRL",
+    symbol: "R$",
+    cnName: "巴西雷亚尔",
+    hasDecimals: true,
+    aliases: ["brl", "r$", "雷亚尔", "巴西雷亚尔"]
+  },
   GBP: {
     code: "GBP",
     symbol: "£",
@@ -90,9 +97,10 @@ function parse(rawText, originalText, defaultDollar = 'AUTO') {
   let cleanText = rawText.replace(/['’`"]/g, '');
 
   // ==========================================
-  // 步骤 1：全符号正则匹配
+  // 步骤 1：全符号与复合别名匹配
   // ==========================================
   
+  // 1.1 特殊非字母单字符优先匹配
   if (/[\u00a3\uffe1]|\bgbp\b|英镑/i.test(cleanText)) {
     matchedKey = 'GBP';
   } else if (/[\u20a9\uffe6₩]|\bkrw\b|韩元|韩币/i.test(cleanText)) {
@@ -103,7 +111,7 @@ function parse(rawText, originalText, defaultDollar = 'AUTO') {
     matchedKey = 'THB';
   }
 
-  // 1.2 复合别名匹配 (HK$, H$, S$, NT$, MOP$, JP¥, USD, JPY 等)
+  // 1.2 复合别名匹配 (R$, HK$, H$, S$, NT$, MOP$, JP¥, USD, BRL 等)
   if (!matchedKey) {
     for (const [key, config] of Object.entries(list)) {
       const mainAliases = config.aliases.filter(a => a !== '$' && a !== '¥');
@@ -190,13 +198,12 @@ function parse(rawText, originalText, defaultDollar = 'AUTO') {
   // 场景 B：没有小数点时的提取分支
   if (!amount) {
     if (!hasDecimals) {
-      // 没有任何小数点的无角分货币 (JPY, TWD, KRW)
       const digits = pureText.match(/\d+/g) || [];
       if (digits.length > 0) {
         amount = parseFloat(digits.join('')) * multiplier;
       }
     } else {
-      // 带角分货币 (USD, GBP, EUR, HKD, SGD 等)
+      // 带角分货币 (BRL, USD, GBP, EUR, HKD, SGD 等)
       
       // B.1 美亚/千分位判定：含逗号
       if (/,/.test(pureText)) {
@@ -219,7 +226,6 @@ function parse(rawText, originalText, defaultDollar = 'AUTO') {
         const blocks = noCommaText.match(/\d+/g) || [];
 
         if (blocks.length >= 2) {
-          // 有明显空格断层（如 "HKD 705 72"）
           const lastBlock = blocks[blocks.length - 1];
           if (lastBlock.length <= 2) {
             const intPart = blocks.slice(0, -1).join('');
@@ -230,8 +236,6 @@ function parse(rawText, originalText, defaultDollar = 'AUTO') {
           }
         } else if (blocks.length === 1) {
           const singleStr = blocks[0];
-          // 🌟 修正关键：只有粘连 5~6 位纯数字时（如 HKD 203889 或 HKD 70572），才切后两位作为角分
-          // 3~4 位纯数字（如 499, 1280）当作纯整数处理！
           if (singleStr.length >= 5 && singleStr.length <= 6) {
             const intPart = singleStr.slice(0, -2);
             const decPart = singleStr.slice(-2);
